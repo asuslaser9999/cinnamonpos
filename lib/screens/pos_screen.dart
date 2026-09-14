@@ -395,7 +395,11 @@ class _HoldingPanel extends StatefulWidget {
 class _HoldingPanelState extends State<_HoldingPanel> {
   final _thermal = ThermalPrintService();
 
-  Future<void> _printSale(Sale sale, {double? cashReceived, double? change}) async {
+  Future<void> _printSale(
+    Sale sale, {
+    double? cashReceived,
+    double? change,
+  }) async {
     final appSettings = context.read<AppSettingsNotifier>().settings;
     final printer = context.read<PrinterSettingsNotifier>().settings;
     try {
@@ -448,15 +452,11 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                 value: CurrencyFormatter.format(pos.lastCashReceived),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Kembalian',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
+              Text('Kembalian', style: Theme.of(context).textTheme.labelMedium),
               Text(
                 CurrencyFormatter.format(pos.lastChange),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -549,9 +549,8 @@ class _HoldingPanelState extends State<_HoldingPanel> {
       if (!mounted) return;
       if (sale == null) {
         if (pos.errorMessage != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(pos.errorMessage!)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(pos.errorMessage!)));
         }
         return;
       }
@@ -591,9 +590,8 @@ class _HoldingPanelState extends State<_HoldingPanel> {
     if (!mounted) return;
     if (sale == null) {
       if (pos.errorMessage != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(pos.errorMessage!)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(pos.errorMessage!)));
       }
       return;
     }
@@ -628,10 +626,9 @@ class _HoldingPanelState extends State<_HoldingPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    'Tabel sementara',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    ' ',
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
                 Text(
@@ -646,9 +643,8 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                 ? Center(
                     child: Text(
                       'Ketuk produk untuk menambah ke tabel.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
                   )
@@ -667,7 +663,9 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                           TableCellVerticalAlignment.middle,
                       children: [
                         TableRow(
-                          decoration: AppTableStyles.headerDecorationOf(context),
+                          decoration: AppTableStyles.headerDecorationOf(
+                            context,
+                          ),
                           children: const [
                             _HeaderCell('Produk'),
                             _HeaderCell('Qty', align: TextAlign.center),
@@ -678,10 +676,11 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                         ),
                         ...pos.lines.map((line) {
                           return TableRow(
-                            decoration: AppTableStyles.consignmentRowDecorationOf(
-                              context,
-                              line.product.type.isConsignment,
-                            ),
+                            decoration:
+                                AppTableStyles.consignmentRowDecorationOf(
+                                  context,
+                                  line.product.type.isConsignment,
+                                ),
                             children: [
                               Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -750,9 +749,7 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                     'Service ${settings.serviceChargePercent.toStringAsFixed(0)}%',
                   ),
                   subtitle: Text(
-                    CurrencyFormatter.format(
-                      pos.serviceChargeAmount(settings),
-                    ),
+                    CurrencyFormatter.format(pos.serviceChargeAmount(settings)),
                   ),
                   value: pos.applyServiceCharge,
                   onChanged: settings.serviceChargePercent <= 0
@@ -768,9 +765,8 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                     ),
                     Text(
                       'Total ${CurrencyFormatter.format(pos.total(settings))}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -852,76 +848,73 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                     ),
                   ),
                 ] else ...[
-                SegmentedButton<CheckoutPaymentMode>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: CheckoutPaymentMode.cash,
-                      label: Text('Tunai'),
+                  SegmentedButton<CheckoutPaymentMode>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: CheckoutPaymentMode.cash,
+                        label: Text('Tunai'),
+                      ),
+                      ButtonSegment(
+                        value: CheckoutPaymentMode.edc,
+                        label: Text('EDC'),
+                      ),
+                      ButtonSegment(
+                        value: CheckoutPaymentMode.split,
+                        label: Text('Campuran'),
+                      ),
+                    ],
+                    selected: {pos.paymentMode},
+                    onSelectionChanged: (value) =>
+                        pos.setPaymentMode(value.first),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: () {
+                      final tenants = context
+                          .read<PartnerTenantNotifier>()
+                          .activeItems;
+                      if (tenants.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Tambah tenan dulu di Master Tenan.'),
+                          ),
+                        );
+                        return;
+                      }
+                      pos.setPaymentMode(CheckoutPaymentMode.viaTenant);
+                      pos.setPartnerTenant(pos.partnerTenant ?? tenants.first);
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF7A1F2B),
+                      foregroundColor: Colors.white,
                     ),
-                    ButtonSegment(
-                      value: CheckoutPaymentMode.edc,
-                      label: Text('EDC'),
+                    child: Text(
+                      'VIA TENAN',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: Colors.white,
+                      ),
                     ),
-                    ButtonSegment(
-                      value: CheckoutPaymentMode.split,
-                      label: Text('Campuran'),
+                  ),
+                  if (pos.paymentMode == CheckoutPaymentMode.split) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Bagian tunai',
+                        helperText: 'Sisa otomatis menjadi EDC',
+                      ),
+                      onChanged: (value) => pos.setSplitCashAmount(
+                        CurrencyFormatter.parse(value),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'EDC ${CurrencyFormatter.format(pos.splitEdcAmount(settings))}',
                     ),
                   ],
-                  selected: {pos.paymentMode},
-                  onSelectionChanged: (value) =>
-                      pos.setPaymentMode(value.first),
-                ),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: () {
-                    final tenants = context
-                        .read<PartnerTenantNotifier>()
-                        .activeItems;
-                    if (tenants.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Tambah tenan dulu di Master Tenan.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    pos.setPaymentMode(CheckoutPaymentMode.viaTenant);
-                    pos.setPartnerTenant(
-                      pos.partnerTenant ?? tenants.first,
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF7A1F2B),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(
-                    'VIA TENAN',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                if (pos.paymentMode == CheckoutPaymentMode.split) ...[
-                  const SizedBox(height: 10),
-                  TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Bagian tunai',
-                      helperText: 'Sisa otomatis menjadi EDC',
-                    ),
-                    onChanged: (value) =>
-                        pos.setSplitCashAmount(CurrencyFormatter.parse(value)),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'EDC ${CurrencyFormatter.format(pos.splitEdcAmount(settings))}',
-                  ),
-                ],
                 ],
                 if (pos.errorMessage != null) ...[
                   const SizedBox(height: 8),
@@ -993,11 +986,7 @@ class _HeaderCell extends StatelessWidget {
 }
 
 class _BodyCell extends StatelessWidget {
-  const _BodyCell(
-    this.label, {
-    this.align = TextAlign.left,
-    this.bold = false,
-  });
+  const _BodyCell(this.label, {this.align = TextAlign.left, this.bold = false});
 
   final String label;
   final TextAlign align;
