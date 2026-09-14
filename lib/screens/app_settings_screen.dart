@@ -7,6 +7,7 @@ import '../domain/cashier_access_policy.dart';
 import '../models/app_appearance.dart';
 import '../models/app_settings.dart';
 import '../models/cashier_access_mode.dart';
+import '../models/hero_banner_fit.dart';
 import '../models/pos_product_image_size.dart';
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/printer_settings_notifier.dart';
@@ -226,8 +227,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'JPG tampil full lebar di login dan menu utama, '
-                      'menggantikan icon toko. Tersimpan di perangkat ini.',
+                      'JPG tampil di login dan menu utama, menggantikan icon toko. '
+                      'Atur apakah gambar utuh, diregang, atau mengisi area. '
+                      'Tersimpan di perangkat ini.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
@@ -254,6 +256,38 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                         ],
                       ],
                     ),
+                    if (_draft.hasHeroBanner) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Tampilan gambar',
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      RadioGroup<HeroBannerFit>(
+                        groupValue: _draft.heroBannerFit,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _draft = _draft.copyWith(heroBannerFit: value);
+                          });
+                          context
+                              .read<AppSettingsNotifier>()
+                              .updateHeroBannerFit(value);
+                        },
+                        child: Column(
+                          children: [
+                            ...HeroBannerFit.values.map((fit) {
+                              return RadioListTile<HeroBannerFit>(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(fit.label),
+                                subtitle: Text(fit.description),
+                                value: fit,
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _storeNameController,
@@ -545,9 +579,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Jika aktif, total tunai dibulatkan ke atas ke ribuan. '
-                      'Selisih tercatat sebagai donasi. '
-                      'Contoh: 87.700 menjadi 88.000 (donasi 300). '
+                      'Jika aktif, saat bayar tunai kasir menanyakan apakah '
+                      'pelanggan bersedia donasi pembulatan ke ribuan. '
+                      'Contoh: 87.700 menjadi 88.000 (donasi 300) jika bersedia. '
                       'Tidak berlaku untuk EDC, campuran, atau via tenan.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),

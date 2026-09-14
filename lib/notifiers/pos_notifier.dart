@@ -42,6 +42,7 @@ class PosNotifier extends ChangeNotifier {
   PartnerTenant? partnerTenant;
   double cashReceived = 0;
   double splitCashAmount = 0;
+  bool acceptDonation = false;
   bool _isSaving = false;
   String? _errorMessage;
   Sale? lastSale;
@@ -63,10 +64,15 @@ class PosNotifier extends ChangeNotifier {
   double total(AppSettings settings) =>
       subtotal + serviceChargeAmount(settings);
 
-  double donationAmount(AppSettings settings) {
+  double suggestedDonationAmount(AppSettings settings) {
     if (paymentMode != CheckoutPaymentMode.cash) return 0;
     if (!settings.cashDonationRoundingEnabled) return 0;
     return DonationRounding.amount(total(settings));
+  }
+
+  double donationAmount(AppSettings settings) {
+    if (!acceptDonation) return 0;
+    return suggestedDonationAmount(settings);
   }
 
   double payable(AppSettings settings) =>
@@ -126,6 +132,9 @@ class PosNotifier extends ChangeNotifier {
 
   void setPaymentMode(CheckoutPaymentMode mode) {
     paymentMode = mode;
+    if (mode != CheckoutPaymentMode.cash) {
+      acceptDonation = false;
+    }
     notifyListeners();
   }
 
@@ -139,6 +148,11 @@ class PosNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setAcceptDonation(bool value) {
+    acceptDonation = value;
+    notifyListeners();
+  }
+
   void setSplitCashAmount(double value) {
     splitCashAmount = value;
     notifyListeners();
@@ -148,6 +162,7 @@ class PosNotifier extends ChangeNotifier {
     _lines.clear();
     cashReceived = 0;
     splitCashAmount = 0;
+    acceptDonation = false;
     paymentMode = CheckoutPaymentMode.cash;
     partnerTenant = null;
     _errorMessage = null;
@@ -241,6 +256,7 @@ class PosNotifier extends ChangeNotifier {
       _lines.clear();
       cashReceived = 0;
       splitCashAmount = 0;
+      acceptDonation = false;
       return sale;
     } catch (e) {
       if (kDebugMode) debugPrint('Checkout failed: $e');

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../notifiers/report_notifier.dart';
+import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/report_widgets.dart';
 
 class TenantBillReportScreen extends StatefulWidget {
   const TenantBillReportScreen({super.key});
@@ -22,162 +24,139 @@ class _TenantBillReportScreenState extends State<TenantBillReportScreen> {
 
   Future<void> _pickPeriod() async {
     final notifier = context.read<ReportNotifier>();
-    final start = await showDatePicker(
-      context: context,
-      initialDate: notifier.start,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Dari tanggal',
+    final period = await ReportPeriodPicker.pick(
+      context,
+      start: notifier.start,
+      end: notifier.end,
     );
-    if (start == null || !mounted) return;
-    final end = await showDatePicker(
-      context: context,
-      initialDate: notifier.end.isBefore(start) ? start : notifier.end,
-      firstDate: start,
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Sampai tanggal',
-    );
-    if (end == null || !mounted) return;
-    await notifier.load(start: start, end: end);
+    if (period == null || !mounted) return;
+    await notifier.load(start: period.start, end: period.end);
   }
 
   @override
   Widget build(BuildContext context) {
     final notifier = context.watch<ReportNotifier>();
     final report = notifier.tenantBillReport;
+    final palette = context.palette;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tagihan Tenan'),
-        actions: [
-          TextButton(
-            onPressed: _pickPeriod,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220),
-              child: Text(
-                CurrencyFormatter.formatPeriod(notifier.start, notifier.end),
-                textAlign: TextAlign.right,
-                maxLines: 2,
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: notifier.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : report == null
-          ? Center(child: Text(notifier.errorMessage ?? 'Tidak ada data.'))
-          : ListView(
-              padding: const EdgeInsets.all(16),
+    return ReportScaffold(
+      title: 'Tagihan Tenan',
+      periodLabel: CurrencyFormatter.formatPeriod(notifier.start, notifier.end),
+      onPickPeriod: _pickPeriod,
+      isLoading: notifier.isLoading,
+      errorMessage: notifier.errorMessage,
+      onRefresh: notifier.load,
+      child: report == null
+          ? null
+          : ReportBody(
               children: [
-                Text(
-                  'Produk Anda yang dijual tenan lain. '
-                  'Uang belum masuk laci — ini tagihan yang bisa diminta.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 12),
-                _MetricCard(
-                  label: 'Qty terjual',
-                  value: report.qty.toStringAsFixed(0),
-                ),
-                const SizedBox(height: 8),
-                _MetricCard(
-                  label: 'Subtotal',
-                  value: CurrencyFormatter.format(report.subtotal),
-                ),
-                if (report.service > 0) ...[
-                  const SizedBox(height: 8),
-                  _MetricCard(
-                    label: 'Service',
-                    value: CurrencyFormatter.format(report.service),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                _MetricCard(
+                ReportHeroCard(
+                  icon: Icons.storefront_outlined,
+                  color: palette.accentTeal,
                   label: 'Total tagihan',
                   value: CurrencyFormatter.format(report.total),
+                  subtitle:
+                      'Produk Anda yang dijual tenan lain. '
+                      'Uang belum masuk laci.',
                 ),
-                const SizedBox(height: 8),
-                _MetricCard(
-                  label: 'Transaksi',
-                  value: '${report.transactionCount}',
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Per tenan',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                if (report.rows.isEmpty)
-                  const Text('Belum ada penjualan via tenan di periode ini.')
-                else
-                  ...report.rows.map((row) {
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ExpansionTile(
-                        title: Text(row.tenantName),
-                        subtitle: Text(
-                          '${row.qty.toStringAsFixed(0)} pcs · '
-                          '${row.transactionCount} transaksi',
-                        ),
-                        trailing: Text(
-                          CurrencyFormatter.format(row.total),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        children: [
-                          ListTile(
-                            dense: true,
-                            title: const Text('Subtotal'),
-                            trailing: Text(
-                              CurrencyFormatter.format(row.subtotal),
-                            ),
-                          ),
-                          if (row.service > 0)
-                            ListTile(
-                              dense: true,
-                              title: const Text('Service'),
-                              trailing: Text(
-                                CurrencyFormatter.format(row.service),
-                              ),
-                            ),
-                          ...row.products.map(
-                            (product) => ListTile(
-                              dense: true,
-                              title: Text(product.productName),
-                              subtitle: Text(
-                                '${product.qty.toStringAsFixed(0)} pcs',
-                              ),
-                              trailing: Text(
-                                CurrencyFormatter.format(product.omzet),
-                              ),
-                            ),
-                          ),
-                        ],
+                ReportSection(
+                  title: 'Ringkasan',
+                  child: ReportMetricGrid(
+                    metrics: [
+                      ReportMetric(
+                        label: 'Qty terjual',
+                        value: report.qty.toStringAsFixed(0),
+                        icon: Icons.inventory_2_outlined,
+                        color: palette.accentOrange,
                       ),
-                    );
-                  }),
+                      ReportMetric(
+                        label: 'Subtotal',
+                        value: CurrencyFormatter.format(report.subtotal),
+                        icon: Icons.receipt_outlined,
+                        color: palette.accentBlue,
+                      ),
+                      if (report.service > 0)
+                        ReportMetric(
+                          label: 'Service',
+                          value: CurrencyFormatter.format(report.service),
+                          icon: Icons.room_service_outlined,
+                          color: palette.accentIndigo,
+                        ),
+                      ReportMetric(
+                        label: 'Transaksi',
+                        value: '${report.transactionCount}',
+                        icon: Icons.receipt_long_outlined,
+                        color: palette.accentPurple,
+                      ),
+                    ],
+                  ),
+                ),
+                ReportSection(
+                  title: 'Per tenan',
+                  child: report.rows.isEmpty
+                      ? Text(
+                          'Belum ada penjualan via tenan di periode ini.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )
+                      : Column(
+                          children: [
+                            for (final row in report.rows)
+                              Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: ExpansionTile(
+                                  title: Text(
+                                    row.tenantName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${row.qty.toStringAsFixed(0)} pcs · '
+                                    '${row.transactionCount} transaksi',
+                                  ),
+                                  trailing: Text(
+                                    CurrencyFormatter.format(row.total),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  children: [
+                                    ListTile(
+                                      dense: true,
+                                      title: const Text('Subtotal'),
+                                      trailing: Text(
+                                        CurrencyFormatter.format(row.subtotal),
+                                      ),
+                                    ),
+                                    if (row.service > 0)
+                                      ListTile(
+                                        dense: true,
+                                        title: const Text('Service'),
+                                        trailing: Text(
+                                          CurrencyFormatter.format(row.service),
+                                        ),
+                                      ),
+                                    for (final product in row.products)
+                                      ListTile(
+                                        dense: true,
+                                        title: Text(product.productName),
+                                        subtitle: Text(
+                                          '${product.qty.toStringAsFixed(0)} pcs',
+                                        ),
+                                        trailing: Text(
+                                          CurrencyFormatter.format(
+                                            product.omzet,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
               ],
             ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(label),
-        trailing: Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
     );
   }
 }

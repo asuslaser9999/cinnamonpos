@@ -21,6 +21,18 @@ class SoldProductRow {
   double get profit => omzet - cost;
 }
 
+class DonationRow {
+  const DonationRow({
+    required this.saleNumber,
+    required this.soldAt,
+    required this.amount,
+  });
+
+  final String saleNumber;
+  final DateTime soldAt;
+  final double amount;
+}
+
 class CashierReport {
   const CashierReport({
     required this.startDate,
@@ -39,6 +51,8 @@ class CashierReport {
     required this.viaTenantQty,
     required this.viaTenantService,
     required this.donationTotal,
+    required this.donationCount,
+    required this.donations,
     required this.products,
   });
 
@@ -58,6 +72,8 @@ class CashierReport {
   final double viaTenantQty;
   final double viaTenantService;
   final double donationTotal;
+  final int donationCount;
+  final List<DonationRow> donations;
   final List<SoldProductRow> products;
 
   double get netSales => grossSales; // already excludes refunded
@@ -162,6 +178,18 @@ class ReportAggregator {
     final products = productMap.values.toList()
       ..sort((a, b) => b.omzet.compareTo(a.omzet));
 
+    final donations = paid
+        .where((s) => s.netDonation > 0)
+        .map(
+          (s) => DonationRow(
+            saleNumber: s.saleNumber,
+            soldAt: s.soldAt,
+            amount: s.netDonation,
+          ),
+        )
+        .toList()
+      ..sort((a, b) => b.soldAt.compareTo(a.soldAt));
+
     return CashierReport(
       startDate: startDate,
       endDate: endDate,
@@ -187,6 +215,8 @@ class ReportAggregator {
           .where((s) => s.channel.isViaTenant)
           .fold(0, (sum, s) => sum + s.netService),
       donationTotal: paid.fold(0, (sum, s) => sum + s.netDonation),
+      donationCount: donations.length,
+      donations: donations,
       products: products,
     );
   }

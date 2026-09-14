@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../core/guards/owner_gate.dart';
 import '../notifiers/report_notifier.dart';
+import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/report_widgets.dart';
 
 class OwnerReportScreen extends StatefulWidget {
   const OwnerReportScreen({super.key});
@@ -23,99 +25,176 @@ class _OwnerReportScreenState extends State<OwnerReportScreen> {
 
   Future<void> _pickPeriod() async {
     final notifier = context.read<ReportNotifier>();
-    final start = await showDatePicker(
-      context: context,
-      initialDate: notifier.start,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Dari tanggal',
+    final period = await ReportPeriodPicker.pick(
+      context,
+      start: notifier.start,
+      end: notifier.end,
     );
-    if (start == null || !mounted) return;
-    final end = await showDatePicker(
-      context: context,
-      initialDate: notifier.end.isBefore(start) ? start : notifier.end,
-      firstDate: start,
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Sampai tanggal',
-    );
-    if (end == null || !mounted) return;
-    await notifier.load(start: start, end: end);
+    if (period == null || !mounted) return;
+    await notifier.load(start: period.start, end: period.end);
   }
 
   @override
   Widget build(BuildContext context) {
     final notifier = context.watch<ReportNotifier>();
     final report = notifier.ownerReport;
+    final palette = context.palette;
 
     return OwnerGate(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Laporan Owner'),
-          actions: [
-            TextButton(
-              onPressed: _pickPeriod,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
-                child: Text(
-                  CurrencyFormatter.formatPeriod(notifier.start, notifier.end),
-                  textAlign: TextAlign.right,
-                  maxLines: 2,
-                ),
-              ),
-            ),
-          ],
+      child: ReportScaffold(
+        title: 'Laporan Owner',
+        periodLabel: CurrencyFormatter.formatPeriod(
+          notifier.start,
+          notifier.end,
         ),
-        body: notifier.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : report == null
-            ? Center(child: Text(notifier.errorMessage ?? 'Tidak ada data.'))
-            : ListView(
-                padding: const EdgeInsets.all(16),
+        onPickPeriod: _pickPeriod,
+        isLoading: notifier.isLoading,
+        errorMessage: notifier.errorMessage,
+        onRefresh: notifier.load,
+        child: report == null
+            ? null
+            : ReportBody(
                 children: [
-                  _row('Penjualan', report.cashierReport.grossSales),
-                  _row('Kasir sendiri', report.cashierReport.ownCashierTotal),
-                  _row('Via tenan', report.viaTenantOmzet),
-                  _row('Buat sendiri', report.ownProductionOmzet),
-                  _row('Titipan', report.consignmentOmzet),
-                  _row('Service', report.cashierReport.serviceCharge),
-                  _row('Tunai (diterima)', report.cashierReport.cashTotal),
-                  _row('Nontunai / EDC', report.cashierReport.edcTotal),
-                  _row('Tagihan tenan', report.receivableTotal),
-                  if (report.cashierReport.donationTotal > 0)
-                    _row('Donasi pembulatan', report.cashierReport.donationTotal),
-                  _row('HPP / modal', report.costOfGoods),
-                  _row('Laba kotor', report.grossProfit),
-                  _row('Pengeluaran', report.expenseTotal),
-                  _row('Laba bersih', report.netProfit, emphasize: true),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Laba kotor = omzet produk − HPP + service, termasuk via tenan. '
-                    'Tunai + EDC = uang di tangan. Tagihan tenan belum diterima. '
-                    'Laba bersih = laba kotor − pengeluaran.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  ReportHeroCard(
+                    icon: Icons.assessment_rounded,
+                    color: palette.accentPurple,
+                    label: 'Laba bersih',
+                    value: CurrencyFormatter.format(report.netProfit),
+                    subtitle:
+                        'Laba kotor − pengeluaran. Donasi tidak masuk laba.',
+                  ),
+                  ReportSection(
+                    title: 'Omzet',
+                    child: ReportMetricGrid(
+                      metrics: [
+                        ReportMetric(
+                          label: 'Penjualan',
+                          value: CurrencyFormatter.format(
+                            report.cashierReport.grossSales,
+                          ),
+                          icon: Icons.trending_up_rounded,
+                          color: palette.accentGreen,
+                        ),
+                        ReportMetric(
+                          label: 'Kasir sendiri',
+                          value: CurrencyFormatter.format(
+                            report.cashierReport.ownCashierTotal,
+                          ),
+                          icon: Icons.point_of_sale_rounded,
+                          color: palette.accentOrange,
+                        ),
+                        ReportMetric(
+                          label: 'Via tenan',
+                          value: CurrencyFormatter.format(report.viaTenantOmzet),
+                          icon: Icons.storefront_outlined,
+                          color: palette.accentTeal,
+                        ),
+                        ReportMetric(
+                          label: 'Buat sendiri',
+                          value: CurrencyFormatter.format(
+                            report.ownProductionOmzet,
+                          ),
+                          icon: Icons.bakery_dining_outlined,
+                          color: palette.accentPink,
+                        ),
+                        ReportMetric(
+                          label: 'Titipan',
+                          value: CurrencyFormatter.format(
+                            report.consignmentOmzet,
+                          ),
+                          icon: Icons.inventory_2_outlined,
+                          color: palette.accentIndigo,
+                        ),
+                        if (report.cashierReport.serviceCharge > 0)
+                          ReportMetric(
+                            label: 'Service',
+                            value: CurrencyFormatter.format(
+                              report.cashierReport.serviceCharge,
+                            ),
+                            icon: Icons.room_service_outlined,
+                            color: palette.accentBlue,
+                          ),
+                      ],
+                    ),
+                  ),
+                  ReportSection(
+                    title: 'Uang di tangan',
+                    subtitle: 'Tagihan tenan belum diterima',
+                    child: ReportMetricGrid(
+                      metrics: [
+                        ReportMetric(
+                          label: 'Tunai (diterima)',
+                          value: CurrencyFormatter.format(
+                            report.cashierReport.cashTotal,
+                          ),
+                          subtitle: 'Termasuk donasi pembulatan',
+                          icon: Icons.payments_rounded,
+                          color: palette.accentGreen,
+                        ),
+                        ReportMetric(
+                          label: 'Nontunai / EDC',
+                          value: CurrencyFormatter.format(
+                            report.cashierReport.edcTotal,
+                          ),
+                          icon: Icons.credit_card_outlined,
+                          color: palette.accentBlue,
+                        ),
+                        ReportMetric(
+                          label: 'Tagihan tenan',
+                          value: CurrencyFormatter.format(
+                            report.receivableTotal,
+                          ),
+                          icon: Icons.storefront_outlined,
+                          color: palette.accentTeal,
+                        ),
+                      ],
+                    ),
+                  ),
+                  ReportSection(
+                    title: 'Donasi',
+                    subtitle:
+                        'Pembulatan yang dipilih pelanggan. Bukan omzet toko.',
+                    child: ReportDonationRecap(
+                      total: report.cashierReport.donationTotal,
+                      count: report.cashierReport.donationCount,
+                      donations: report.cashierReport.donations,
+                    ),
+                  ),
+                  ReportSection(
+                    title: 'Laba',
+                    subtitle:
+                        'Laba kotor = omzet produk − HPP + service, termasuk via tenan.',
+                    child: ReportMetricGrid(
+                      metrics: [
+                        ReportMetric(
+                          label: 'HPP / modal',
+                          value: CurrencyFormatter.format(report.costOfGoods),
+                          icon: Icons.shopping_bag_outlined,
+                          color: palette.accentOrange,
+                        ),
+                        ReportMetric(
+                          label: 'Laba kotor',
+                          value: CurrencyFormatter.format(report.grossProfit),
+                          icon: Icons.stacked_line_chart_rounded,
+                          color: palette.accentGreen,
+                        ),
+                        ReportMetric(
+                          label: 'Pengeluaran',
+                          value: CurrencyFormatter.format(report.expenseTotal),
+                          icon: Icons.money_off_outlined,
+                          color: palette.accentRed,
+                        ),
+                        ReportMetric(
+                          label: 'Laba bersih',
+                          value: CurrencyFormatter.format(report.netProfit),
+                          icon: Icons.account_balance_wallet_outlined,
+                          color: palette.accentPurple,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-      ),
-    );
-  }
-
-  Widget _row(String label, double value, {bool emphasize = false}) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        title: Text(
-          label,
-          style: TextStyle(
-            fontWeight: emphasize ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
-        trailing: Text(
-          CurrencyFormatter.format(value),
-          style: TextStyle(
-            fontWeight: emphasize ? FontWeight.w800 : FontWeight.w600,
-          ),
-        ),
       ),
     );
   }

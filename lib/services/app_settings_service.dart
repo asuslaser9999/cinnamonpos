@@ -4,6 +4,7 @@ import '../core/constants/app_defaults.dart';
 import '../models/app_appearance.dart';
 import '../models/app_settings.dart';
 import '../models/cashier_access_mode.dart';
+import '../models/hero_banner_fit.dart';
 import '../models/pos_product_image_size.dart';
 
 class AppSettingsService {
@@ -24,6 +25,7 @@ class AppSettingsService {
   static const _appearanceKey = 'cn_app_theme_mode';
   static const _heroBannerPathKey = 'cn_hero_banner_path';
   static const _heroBannerVersionKey = 'cn_hero_banner_version';
+  static const _heroBannerFitKey = 'cn_hero_banner_fit';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -67,6 +69,9 @@ class AppSettingsService {
       appearance: AppAppearance.fromStorageKey(prefs.getString(_appearanceKey)),
       heroBannerPath: prefs.getString(_heroBannerPathKey),
       heroBannerVersion: prefs.getInt(_heroBannerVersionKey) ?? 0,
+      heroBannerFit: HeroBannerFit.fromStorageKey(
+        prefs.getString(_heroBannerFitKey),
+      ),
     );
   }
 
@@ -110,5 +115,6 @@ class AppSettingsService {
       await prefs.setString(_heroBannerPathKey, bannerPath);
     }
     await prefs.setInt(_heroBannerVersionKey, settings.heroBannerVersion);
+    await prefs.setString(_heroBannerFitKey, settings.heroBannerFit.storageKey);
   }
 }

@@ -26,17 +26,26 @@ class StoreHeroBanner extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return SizedBox(
-      width: double.infinity,
-      height: height,
-      child: Image.file(
-        file,
-        key: ValueKey(settings.heroBannerVersion),
+    final scheme = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: scheme.surfaceContainer,
+      child: SizedBox(
         width: double.infinity,
         height: height,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        filterQuality: FilterQuality.medium,
+        child: ClipRect(
+          child: Image.file(
+            file,
+            key: ValueKey(
+              '${settings.heroBannerVersion}-${settings.heroBannerFit.storageKey}',
+            ),
+            width: double.infinity,
+            height: height,
+            fit: settings.heroBannerFit.boxFit,
+            alignment: Alignment.center,
+            gaplessPlayback: true,
+            filterQuality: FilterQuality.medium,
+          ),
+        ),
       ),
     );
   }

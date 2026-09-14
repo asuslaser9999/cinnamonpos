@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../notifiers/report_notifier.dart';
+import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/report_widgets.dart';
 
 class CashierReportScreen extends StatefulWidget {
   const CashierReportScreen({super.key});
@@ -22,197 +24,138 @@ class _CashierReportScreenState extends State<CashierReportScreen> {
 
   Future<void> _pickPeriod() async {
     final notifier = context.read<ReportNotifier>();
-    final start = await showDatePicker(
-      context: context,
-      initialDate: notifier.start,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Dari tanggal',
+    final period = await ReportPeriodPicker.pick(
+      context,
+      start: notifier.start,
+      end: notifier.end,
     );
-    if (start == null || !mounted) return;
-    final end = await showDatePicker(
-      context: context,
-      initialDate: notifier.end.isBefore(start) ? start : notifier.end,
-      firstDate: start,
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Sampai tanggal',
-    );
-    if (end == null || !mounted) return;
-    await notifier.load(start: start, end: end);
+    if (period == null || !mounted) return;
+    await notifier.load(start: period.start, end: period.end);
   }
 
   @override
   Widget build(BuildContext context) {
     final notifier = context.watch<ReportNotifier>();
     final report = notifier.cashierReport;
+    final palette = context.palette;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Laporan Kasir'),
-        actions: [
-          TextButton(
-            onPressed: _pickPeriod,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220),
-              child: Text(
-                CurrencyFormatter.formatPeriod(notifier.start, notifier.end),
-                textAlign: TextAlign.right,
-                maxLines: 2,
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: notifier.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : report == null
-          ? Center(child: Text(notifier.errorMessage ?? 'Tidak ada data.'))
-          : ListView(
-              padding: const EdgeInsets.all(16),
+    return ReportScaffold(
+      title: 'Laporan Kasir',
+      periodLabel: CurrencyFormatter.formatPeriod(notifier.start, notifier.end),
+      onPickPeriod: _pickPeriod,
+      isLoading: notifier.isLoading,
+      errorMessage: notifier.errorMessage,
+      onRefresh: notifier.load,
+      child: report == null
+          ? null
+          : ReportBody(
               children: [
-                _MetricCard(
+                ReportHeroCard(
+                  icon: Icons.payments_rounded,
+                  color: palette.accentGreen,
                   label: 'Uang tunai yang semestinya',
                   value: CurrencyFormatter.format(report.expectedCash),
                   subtitle:
-                      'Yang harus ada di laci sekarang. '
-                      'Penjualan via tenan tidak termasuk — biasanya dibayar '
-                      'malam setelah closing atau besok pagi.',
-                  emphasize: true,
+                      'Yang harus ada di laci sekarang, termasuk donasi. '
+                      'Penjualan via tenan tidak termasuk.',
                 ),
-                const SizedBox(height: 8),
-                _MetricCard(
-                  label: 'Nontunai / EDC',
-                  value: CurrencyFormatter.format(report.edcTotal),
-                  subtitle: 'Pembayaran kartu di kasir sendiri.',
-                ),
-                if (report.donationTotal > 0) ...[
-                  const SizedBox(height: 8),
-                  _MetricCard(
-                    label: 'Donasi pembulatan',
-                    value: CurrencyFormatter.format(report.donationTotal),
-                    subtitle:
-                        'Sudah termasuk di uang tunai yang semestinya.',
-                  ),
-                ],
-                const SizedBox(height: 16),
-                Text(
-                  'Omzet',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                _MetricCard(
-                  label: 'Total penjualan',
-                  value: CurrencyFormatter.format(report.grossSales),
-                  subtitle: 'Kasir sendiri + via tenan.',
-                ),
-                const SizedBox(height: 8),
-                _MetricCard(
-                  label: 'Kasir sendiri',
-                  value: CurrencyFormatter.format(report.ownCashierTotal),
-                ),
-                const SizedBox(height: 8),
-                _MetricCard(
-                  label: 'Via tenan (belum masuk laci)',
-                  value:
-                      '${CurrencyFormatter.format(report.viaTenantTotal)}'
-                      ' · ${report.viaTenantQty.toStringAsFixed(0)} pcs',
-                  subtitle:
-                      'Tagihan ke tenan. Tidak dihitung sebagai uang tunai.',
-                ),
-                if (report.receivableTotal > 0) ...[
-                  const SizedBox(height: 8),
-                  _MetricCard(
-                    label: 'Tagihan tenan',
-                    value: CurrencyFormatter.format(report.receivableTotal),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                _MetricCard(
-                  label: 'Transaksi / refund',
-                  value: '${report.transactionCount} / ${report.refundCount}',
-                ),
-                if (report.serviceCharge > 0) ...[
-                  const SizedBox(height: 8),
-                  _MetricCard(
-                    label: 'Service',
-                    value: CurrencyFormatter.format(report.serviceCharge),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                Text(
-                  'Produk terjual (kasir sendiri + via tenan)',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                if (report.products.isEmpty)
-                  const Text('Belum ada produk terjual.')
-                else
-                  ...report.products.map(
-                    (row) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(row.productName),
-                        subtitle: Text(
-                          '${row.categoryName} · ${row.productType.label} · '
-                          '${row.qty.toStringAsFixed(0)} pcs',
-                        ),
-                        trailing: Text(
-                          CurrencyFormatter.format(row.omzet),
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
+                ReportSection(
+                  title: 'Pembayaran',
+                  child: ReportMetricGrid(
+                    metrics: [
+                      ReportMetric(
+                        label: 'Nontunai / EDC',
+                        value: CurrencyFormatter.format(report.edcTotal),
+                        subtitle: 'Kartu di kasir sendiri',
+                        icon: Icons.credit_card_outlined,
+                        color: palette.accentBlue,
                       ),
-                    ),
+                      if (report.receivableTotal > 0)
+                        ReportMetric(
+                          label: 'Tagihan tenan',
+                          value: CurrencyFormatter.format(
+                            report.receivableTotal,
+                          ),
+                          icon: Icons.storefront_outlined,
+                          color: palette.accentTeal,
+                        ),
+                    ],
                   ),
+                ),
+                ReportSection(
+                  title: 'Donasi',
+                  subtitle: 'Pembulatan yang dipilih pelanggan saat bayar tunai',
+                  child: ReportDonationRecap(
+                    total: report.donationTotal,
+                    count: report.donationCount,
+                    donations: report.donations,
+                  ),
+                ),
+                ReportSection(
+                  title: 'Omzet',
+                  child: ReportMetricGrid(
+                    metrics: [
+                      ReportMetric(
+                        label: 'Total penjualan',
+                        value: CurrencyFormatter.format(report.grossSales),
+                        subtitle: 'Kasir sendiri + via tenan',
+                        icon: Icons.trending_up_rounded,
+                        color: palette.accentGreen,
+                      ),
+                      ReportMetric(
+                        label: 'Kasir sendiri',
+                        value: CurrencyFormatter.format(report.ownCashierTotal),
+                        icon: Icons.point_of_sale_rounded,
+                        color: palette.accentOrange,
+                      ),
+                      ReportMetric(
+                        label: 'Via tenan',
+                        value: CurrencyFormatter.format(report.viaTenantTotal),
+                        subtitle:
+                            '${report.viaTenantQty.toStringAsFixed(0)} pcs · belum masuk laci',
+                        icon: Icons.storefront_outlined,
+                        color: palette.accentTeal,
+                      ),
+                      ReportMetric(
+                        label: 'Transaksi / refund',
+                        value:
+                            '${report.transactionCount} / ${report.refundCount}',
+                        icon: Icons.receipt_long_outlined,
+                        color: palette.accentPurple,
+                      ),
+                      if (report.serviceCharge > 0)
+                        ReportMetric(
+                          label: 'Service',
+                          value: CurrencyFormatter.format(report.serviceCharge),
+                          icon: Icons.room_service_outlined,
+                          color: palette.accentIndigo,
+                        ),
+                    ],
+                  ),
+                ),
+                ReportSection(
+                  title: 'Produk terjual',
+                  subtitle: 'Kasir sendiri + via tenan',
+                  child: report.products.isEmpty
+                      ? Text(
+                          'Belum ada produk terjual.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )
+                      : Column(
+                          children: [
+                            for (final row in report.products)
+                              ReportProductTile(
+                                name: row.productName,
+                                detail:
+                                    '${row.categoryName} · ${row.productType.label} · '
+                                    '${row.qty.toStringAsFixed(0)} pcs',
+                                amount: CurrencyFormatter.format(row.omzet),
+                              ),
+                          ],
+                        ),
+                ),
               ],
             ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    this.subtitle,
-    this.emphasize = false,
-  });
-
-  final String label;
-  final String value;
-  final String? subtitle;
-  final bool emphasize;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      color: emphasize ? scheme.primaryContainer : null,
-      child: ListTile(
-        title: Text(
-          label,
-          style: emphasize
-              ? TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onPrimaryContainer,
-                )
-              : null,
-        ),
-        subtitle: subtitle == null
-            ? null
-            : Text(
-                subtitle!,
-                style: emphasize
-                    ? TextStyle(color: scheme.onPrimaryContainer)
-                    : null,
-              ),
-        trailing: Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: emphasize ? scheme.onPrimaryContainer : null,
-          ),
-        ),
-      ),
     );
   }
 }

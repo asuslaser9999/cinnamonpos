@@ -426,7 +426,18 @@ class _HoldingPanelState extends State<_HoldingPanel> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _PayResultRow(
-                label: 'Total',
+                label: 'Total belanja',
+                value: CurrencyFormatter.format(pos.lastSale?.total ?? 0),
+              ),
+              if ((pos.lastSale?.donationAmount ?? 0) > 0)
+                _PayResultRow(
+                  label: 'Donasi pembulatan',
+                  value: CurrencyFormatter.format(
+                    pos.lastSale?.donationAmount ?? 0,
+                  ),
+                ),
+              _PayResultRow(
+                label: 'Dibayar',
                 value: CurrencyFormatter.format(
                   (pos.lastSale?.total ?? 0) +
                       (pos.lastSale?.donationAmount ?? 0),
@@ -605,7 +616,6 @@ class _HoldingPanelState extends State<_HoldingPanel> {
     final pos = context.watch<PosNotifier>();
     final settings = context.watch<AppSettingsNotifier>().settings;
     final scheme = Theme.of(context).colorScheme;
-    final payable = pos.payable(settings);
 
     return ColoredBox(
       color: scheme.surfaceContainerLow,
@@ -757,17 +767,17 @@ class _HoldingPanelState extends State<_HoldingPanel> {
                       ),
                     ),
                     Text(
-                      'Total ${CurrencyFormatter.format(payable)}',
+                      'Total ${CurrencyFormatter.format(pos.total(settings))}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                if (pos.donationAmount(settings) > 0) ...[
+                if (pos.suggestedDonationAmount(settings) > 0) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Termasuk donasi ${CurrencyFormatter.format(pos.donationAmount(settings))}',
+                    'Donasi pembulatan ${CurrencyFormatter.format(pos.suggestedDonationAmount(settings))} ditanyakan saat bayar tunai.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],

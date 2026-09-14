@@ -243,7 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           DashboardMenuRow(
                             icon: Icons.summarize_outlined,
                             label: 'Laporan Kasir',
-                            subtitle: 'Penjualan, produk, tunai & nontunai',
+                            subtitle: 'Penjualan, tunai, donasi & produk',
                             color: palette.accentGreen,
                             enabled: menuEnabled,
                             onTap: menuEnabled

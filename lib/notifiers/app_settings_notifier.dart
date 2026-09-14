@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/app_appearance.dart';
 import '../models/app_settings.dart';
+import '../models/hero_banner_fit.dart';
 import '../services/app_settings_service.dart';
 import '../services/remote_app_settings_service.dart';
 
@@ -64,6 +65,14 @@ class AppSettingsNotifier extends ChangeNotifier {
       heroBannerVersion: version,
       clearHeroBanner: clear,
     );
+    await _service.save(next);
+    _settings = next;
+    notifyListeners();
+  }
+
+  /// Banner fit is per-device; apply immediately so login/dashboard update.
+  Future<void> updateHeroBannerFit(HeroBannerFit fit) async {
+    final next = _settings.copyWith(heroBannerFit: fit);
     await _service.save(next);
     _settings = next;
     notifyListeners();

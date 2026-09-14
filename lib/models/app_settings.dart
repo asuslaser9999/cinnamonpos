@@ -6,6 +6,7 @@ import '../core/constants/app_defaults.dart';
 import '../theme/app_theme.dart';
 import 'app_appearance.dart';
 import 'cashier_access_mode.dart';
+import 'hero_banner_fit.dart';
 import 'pos_product_image_size.dart';
 
 class StoreIconOption {
@@ -50,6 +51,7 @@ class AppSettings {
     this.appearance = AppAppearance.dark,
     this.heroBannerPath,
     this.heroBannerVersion = 0,
+    this.heroBannerFit = HeroBannerFit.cover,
   });
 
   final String storeName;
@@ -68,6 +70,7 @@ class AppSettings {
   final AppAppearance appearance;
   final String? heroBannerPath;
   final int heroBannerVersion;
+  final HeroBannerFit heroBannerFit;
 
   bool get hasHeroBanner {
     final path = heroBannerPath?.trim();
@@ -98,6 +101,7 @@ class AppSettings {
     AppAppearance? appearance,
     String? heroBannerPath,
     int? heroBannerVersion,
+    HeroBannerFit? heroBannerFit,
     bool clearHeroBanner = false,
   }) {
     return AppSettings(
@@ -121,6 +125,7 @@ class AppSettings {
       heroBannerPath:
           clearHeroBanner ? null : (heroBannerPath ?? this.heroBannerPath),
       heroBannerVersion: heroBannerVersion ?? this.heroBannerVersion,
+      heroBannerFit: heroBannerFit ?? this.heroBannerFit,
     );
   }
 }

@@ -60,6 +60,19 @@ class _CashPaymentDialogState extends State<_CashPaymentDialog> {
 
   bool get _enough => _received >= _payable && _payable > 0;
 
+  void _setDonate(bool value) {
+    final pos = context.read<PosNotifier>();
+    final oldPayable = pos.payable(widget.settings);
+    pos.setAcceptDonation(value);
+    final newPayable = pos.payable(widget.settings);
+    final current = CurrencyFormatter.parse(_amountController.text);
+    if (current == 0 || (current - oldPayable).abs() < 0.0001) {
+      _amountController.text = CurrencyFormatter.formatGrouped(newPayable);
+      pos.setCashReceived(newPayable);
+    }
+    setState(() {});
+  }
+
   Future<void> _confirm() async {
     final pos = context.read<PosNotifier>();
     pos.setCashReceived(_received);
@@ -125,10 +138,16 @@ class _CashPaymentDialogState extends State<_CashPaymentDialog> {
                 value: pos.total(widget.settings),
                 emphasize: donation <= 0,
               ),
-              if (donation > 0) ...[
-                _AmountRow(label: 'Donasi pembulatan', value: donation),
-                _AmountRow(label: 'Dibayar', value: payable, emphasize: true),
+              if (pos.suggestedDonationAmount(widget.settings) > 0) ...[
+                const SizedBox(height: 12),
+                _DonationChoice(
+                  suggested: pos.suggestedDonationAmount(widget.settings),
+                  accepted: pos.acceptDonation,
+                  onChanged: _setDonate,
+                ),
               ],
+              if (donation > 0)
+                _AmountRow(label: 'Dibayar', value: payable, emphasize: true),
               const SizedBox(height: 16),
               TextField(
                 controller: _amountController,
@@ -200,6 +219,74 @@ class _CashPaymentDialogState extends State<_CashPaymentDialog> {
           child: Text(pos.isSaving ? 'Menyimpan...' : 'Bayar'),
         ),
       ],
+    );
+  }
+}
+
+class _DonationChoice extends StatelessWidget {
+  const _DonationChoice({
+    required this.suggested,
+    required this.accepted,
+    required this.onChanged,
+  });
+
+  final double suggested;
+  final bool accepted;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer.withValues(alpha: 0.55),
+        borderRadius: AppShapes.borderSmall,
+        border: Border.all(
+          color: scheme.secondary.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.volunteer_activism_outlined,
+                color: scheme.secondary,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Bersedia donasi pembulatan?',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSecondaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Pembulatan ${CurrencyFormatter.format(suggested)} ke ribuan terdekat.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: scheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: false, label: Text('Tidak')),
+              ButtonSegment(value: true, label: Text('Ya, donasi')),
+            ],
+            selected: {accepted},
+            onSelectionChanged: (value) => onChanged(value.first),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../models/sale.dart';
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/refund_report_notifier.dart';
+import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/receipt_dialog.dart';
+import '../widgets/report_widgets.dart';
 
 class RefundReportScreen extends StatefulWidget {
   const RefundReportScreen({super.key});
@@ -25,23 +27,13 @@ class _RefundReportScreenState extends State<RefundReportScreen> {
 
   Future<void> _pickPeriod() async {
     final notifier = context.read<RefundReportNotifier>();
-    final start = await showDatePicker(
-      context: context,
-      initialDate: notifier.start,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Dari tanggal',
+    final period = await ReportPeriodPicker.pick(
+      context,
+      start: notifier.start,
+      end: notifier.end,
     );
-    if (start == null || !mounted) return;
-    final end = await showDatePicker(
-      context: context,
-      initialDate: notifier.end.isBefore(start) ? start : notifier.end,
-      firstDate: start,
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      helpText: 'Sampai tanggal',
-    );
-    if (end == null || !mounted) return;
-    await notifier.load(start: start, end: end);
+    if (period == null || !mounted) return;
+    await notifier.load(start: period.start, end: period.end);
   }
 
   Future<void> _openSale(Sale sale) async {
@@ -55,86 +47,75 @@ class _RefundReportScreenState extends State<RefundReportScreen> {
   @override
   Widget build(BuildContext context) {
     final notifier = context.watch<RefundReportNotifier>();
+    final palette = context.palette;
+    final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Laporan Refund'),
-        actions: [
-          TextButton(
-            onPressed: _pickPeriod,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220),
-              child: Text(
-                CurrencyFormatter.formatPeriod(notifier.start, notifier.end),
-                textAlign: TextAlign.right,
-                maxLines: 2,
-              ),
+    return ReportScaffold(
+      title: 'Laporan Refund',
+      periodLabel: CurrencyFormatter.formatPeriod(notifier.start, notifier.end),
+      onPickPeriod: _pickPeriod,
+      isLoading: notifier.isLoading,
+      errorMessage: notifier.errorMessage,
+      onRefresh: notifier.load,
+      child: ReportBody(
+        children: [
+          ReportHeroCard(
+            icon: Icons.undo_rounded,
+            color: palette.accentRed,
+            label: 'Total direfund',
+            value: CurrencyFormatter.format(notifier.totalAmount),
+            subtitle: '${notifier.count} transaksi refund di periode ini',
+          ),
+          if (notifier.errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              notifier.errorMessage!,
+              style: TextStyle(color: scheme.error),
             ),
+          ],
+          ReportSection(
+            title: 'Transaksi',
+            child: notifier.sales.isEmpty
+                ? Text(
+                    'Tidak ada transaksi refund di periode ini.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  )
+                : Column(
+                    children: [
+                      for (final sale in notifier.sales)
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          color: scheme.errorContainer,
+                          child: ListTile(
+                            title: Text(
+                              sale.saleNumber,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: scheme.onErrorContainer,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${CurrencyFormatter.formatDateTime((sale.refundedAt ?? sale.soldAt).toLocal())}'
+                              ' · ${sale.paymentLabel}\n'
+                              '${sale.status.label} · ${sale.items.length} item'
+                              '${sale.refundReason.isEmpty ? '' : ' · ${sale.refundReason}'}',
+                              style: TextStyle(color: scheme.onErrorContainer),
+                            ),
+                            isThreeLine: true,
+                            trailing: Text(
+                              CurrencyFormatter.format(sale.refundedTotal),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: scheme.onErrorContainer,
+                              ),
+                            ),
+                            onTap: () => _openSale(sale),
+                          ),
+                        ),
+                    ],
+                  ),
           ),
         ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: notifier.load,
-        child: notifier.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (notifier.errorMessage != null)
-                    Text(notifier.errorMessage!),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'Ringkasan',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 8),
-                          Text('Jumlah refund: ${notifier.count}'),
-                          Text(
-                            'Total direfund: ${CurrencyFormatter.format(notifier.totalAmount)}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (notifier.sales.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(
-                        child: Text('Tidak ada transaksi refund di periode ini.'),
-                      ),
-                    )
-                  else
-                    ...notifier.sales.map((sale) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        child: ListTile(
-                          title: Text(sale.saleNumber),
-                          subtitle: Text(
-                            '${CurrencyFormatter.formatDateTime((sale.refundedAt ?? sale.soldAt).toLocal())}'
-                            ' · ${sale.paymentLabel}\n'
-                            '${sale.status.label} · ${sale.items.length} item'
-                            '${sale.refundReason.isEmpty ? '' : ' · ${sale.refundReason}'}',
-                          ),
-                          isThreeLine: true,
-                          trailing: Text(
-                            CurrencyFormatter.format(sale.refundedTotal),
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          onTap: () => _openSale(sale),
-                        ),
-                      );
-                    }),
-                ],
-              ),
       ),
     );
   }
