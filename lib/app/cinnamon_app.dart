@@ -7,6 +7,7 @@ import '../core/constants/app_defaults.dart';
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/auth_notifier.dart';
 import '../notifiers/catalog_notifiers.dart';
+import '../notifiers/offline_sync_notifier.dart';
 import '../notifiers/pos_notifier.dart';
 import '../notifiers/printer_settings_notifier.dart';
 import '../theme/app_theme.dart';
@@ -46,7 +47,10 @@ class CinnamonApp extends StatelessWidget {
   }
 }
 
+final _offlineSync = OfflineSyncNotifier();
+
 final List<SingleChildWidget> appProviders = [
+  ChangeNotifierProvider.value(value: _offlineSync),
   ChangeNotifierProvider(create: (_) => AppSettingsNotifier()),
   ChangeNotifierProvider(create: (_) => AuthNotifier()),
   ChangeNotifierProvider(create: (_) => PrinterSettingsNotifier()),
@@ -54,5 +58,7 @@ final List<SingleChildWidget> appProviders = [
   ChangeNotifierProvider(create: (_) => SupplierNotifier()),
   ChangeNotifierProvider(create: (_) => PartnerTenantNotifier()),
   ChangeNotifierProvider(create: (_) => ProductNotifier()),
-  ChangeNotifierProvider(create: (_) => PosNotifier()),
+  ChangeNotifierProvider(
+    create: (_) => PosNotifier(offlineSync: _offlineSync),
+  ),
 ];

@@ -9,6 +9,7 @@ import '../models/cashier_access_mode.dart';
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/auth_notifier.dart';
 import '../notifiers/expense_notifier.dart';
+import '../notifiers/offline_sync_notifier.dart';
 import '../notifiers/refund_report_notifier.dart';
 import '../notifiers/report_notifier.dart';
 import '../notifiers/sale_list_notifier.dart';
@@ -128,6 +129,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final scheme = Theme.of(context).colorScheme;
     final palette = context.palette;
+    final offline = context.watch<OfflineSyncNotifier>();
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -223,6 +225,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                     child: CashierAccessBanner(settings: appSettings),
+                  ),
+                ),
+              if (offline.hasPending)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Material(
+                      color: scheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.cloud_upload_outlined,
+                          color: scheme.onTertiaryContainer,
+                        ),
+                        title: Text(
+                          '${offline.pendingCount} transaksi kasir menunggu diunggah.',
+                        ),
+                        subtitle: const Text(
+                          'Akan terkirim otomatis saat internet kembali.',
+                        ),
+                        trailing: TextButton(
+                          onPressed: offline.isSyncing
+                              ? null
+                              : () => offline.flush(),
+                          child: const Text('Unggah'),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               SliverToBoxAdapter(

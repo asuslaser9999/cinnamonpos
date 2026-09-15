@@ -3,11 +3,15 @@ import 'package:flutter/foundation.dart';
 import '../models/app_settings.dart';
 import '../models/partner_tenant.dart';
 import '../models/payment_method.dart';
+import '../models/pending_sale.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
 import '../models/sale_channel.dart';
+import '../notifiers/offline_sync_notifier.dart';
 import '../services/sale_service.dart';
 import '../utils/donation_rounding.dart';
+import '../utils/local_uuid.dart';
+import '../utils/network_error.dart';
 
 class CartLine {
   CartLine({required this.product, this.qty = 1});
@@ -31,10 +35,13 @@ class CartLine {
 }
 
 class PosNotifier extends ChangeNotifier {
-  PosNotifier({SaleService? saleService})
-    : _saleService = saleService ?? SaleService();
+  PosNotifier({
+    SaleService? saleService,
+    OfflineSyncNotifier? this._offlineSync,
+  }) : _saleService = saleService ?? SaleService();
 
   final SaleService _saleService;
+  final OfflineSyncNotifier? _offlineSync;
 
   final List<CartLine> _lines = [];
   bool applyServiceCharge = false;
@@ -48,6 +55,7 @@ class PosNotifier extends ChangeNotifier {
   Sale? lastSale;
   double lastCashReceived = 0;
   double lastChange = 0;
+  bool lastCheckoutQueued = false;
 
   List<CartLine> get lines => List.unmodifiable(_lines);
   bool get isSaving => _isSaving;
@@ -167,6 +175,7 @@ class PosNotifier extends ChangeNotifier {
     partnerTenant = null;
     _errorMessage = null;
     lastSale = null;
+    lastCheckoutQueued = false;
     notifyListeners();
   }
 
@@ -225,46 +234,104 @@ class PosNotifier extends ChangeNotifier {
     }
 
     _isSaving = true;
+    lastCheckoutQueued = false;
     notifyListeners();
 
+    final now = DateTime.now();
+    final saleId = newLocalUuid();
+    final saleNumber = localSaleNumber(now, saleId);
+    final items = _lines.map((line) => line.toSaleItem()).toList();
+    final channel = paymentMode == CheckoutPaymentMode.viaTenant
+        ? SaleChannel.viaTenant
+        : SaleChannel.ownCashier;
+    final tenantId = paymentMode == CheckoutPaymentMode.viaTenant
+        ? partnerTenant?.id
+        : null;
+    final tenantName = paymentMode == CheckoutPaymentMode.viaTenant
+        ? (partnerTenant?.name ?? '')
+        : '';
+    final pending = PendingSale(
+      id: saleId,
+      saleNumber: saleNumber,
+      soldAt: now,
+      cashierId: _saleService.currentUserId,
+      items: items,
+      payments: payments,
+      subtotal: subtotal,
+      serviceChargePercent: applyServiceCharge
+          ? settings.serviceChargePercent
+          : 0,
+      serviceChargeAmount: serviceChargeAmount(settings),
+      total: total(settings),
+      donationAmount: donationAmount(settings),
+      channel: channel,
+      partnerTenantId: tenantId,
+      partnerTenantName: tenantName,
+    );
+
     try {
-      final sale = await _saleService.createSale(
-        items: _lines.map((line) => line.toSaleItem()).toList(),
-        payments: payments,
-        subtotal: subtotal,
-        serviceChargePercent: applyServiceCharge
-            ? settings.serviceChargePercent
-            : 0,
-        serviceChargeAmount: serviceChargeAmount(settings),
-        total: total(settings),
-        donationAmount: donationAmount(settings),
-        channel: paymentMode == CheckoutPaymentMode.viaTenant
-            ? SaleChannel.viaTenant
-            : SaleChannel.ownCashier,
-        partnerTenantId: paymentMode == CheckoutPaymentMode.viaTenant
-            ? partnerTenant?.id
-            : null,
-        partnerTenantName: paymentMode == CheckoutPaymentMode.viaTenant
-            ? (partnerTenant?.name ?? '')
-            : '',
+      final sale = await _saleService
+          .createSale(
+            id: pending.id,
+            saleNumber: pending.saleNumber,
+            soldAt: pending.soldAt,
+            cashierId: pending.cashierId,
+            items: pending.items,
+            payments: pending.payments,
+            subtotal: pending.subtotal,
+            serviceChargePercent: pending.serviceChargePercent,
+            serviceChargeAmount: pending.serviceChargeAmount,
+            total: pending.total,
+            donationAmount: pending.donationAmount,
+            channel: pending.channel,
+            partnerTenantId: pending.partnerTenantId,
+            partnerTenantName: pending.partnerTenantName,
+          )
+          .timeout(supabaseCallTimeout);
+      _applySuccessfulCheckout(
+        sale: sale,
+        payableAmount: payableAmount,
+        queued: false,
       );
-      lastSale = sale;
-      lastCashReceived = cashReceived;
-      lastChange = cashReceived - payableAmount > 0
-          ? cashReceived - payableAmount
-          : 0;
-      _lines.clear();
-      cashReceived = 0;
-      splitCashAmount = 0;
-      acceptDonation = false;
       return sale;
     } catch (e) {
       if (kDebugMode) debugPrint('Checkout failed: $e');
-      _errorMessage = 'Gagal menyimpan transaksi. Cek koneksi / tabel Supabase.';
+      if (isNetworkError(e) && _offlineSync != null) {
+        try {
+          await _offlineSync.enqueue(pending);
+          final localSale = pending.toSale();
+          _applySuccessfulCheckout(
+            sale: localSale,
+            payableAmount: payableAmount,
+            queued: true,
+          );
+          return localSale;
+        } catch (queueError) {
+          if (kDebugMode) debugPrint('Queue sale failed: $queueError');
+        }
+      }
+      _errorMessage = checkoutKeepCartMessage(e);
       return null;
     } finally {
       _isSaving = false;
       notifyListeners();
     }
+  }
+
+  void _applySuccessfulCheckout({
+    required Sale sale,
+    required double payableAmount,
+    required bool queued,
+  }) {
+    lastSale = sale;
+    lastCheckoutQueued = queued;
+    lastCashReceived = cashReceived;
+    lastChange = cashReceived - payableAmount > 0
+        ? cashReceived - payableAmount
+        : 0;
+    _lines.clear();
+    cashReceived = 0;
+    splitCashAmount = 0;
+    acceptDonation = false;
   }
 }

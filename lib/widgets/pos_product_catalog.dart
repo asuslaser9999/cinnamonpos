@@ -23,6 +23,7 @@ class PosProductCatalog extends StatelessWidget {
     required this.products,
     required this.wide,
     required this.imageSize,
+    this.emptyMessage,
   });
 
   final List<ProductCategory> categories;
@@ -36,6 +37,7 @@ class PosProductCatalog extends StatelessWidget {
   final List<Product> products;
   final bool wide;
   final PosProductImageSize imageSize;
+  final String? emptyMessage;
 
   int get _crossAxisCount => switch (imageSize) {
     PosProductImageSize.normal => wide ? 3 : 2,
@@ -120,10 +122,14 @@ class PosProductCatalog extends StatelessWidget {
               ? const Center(child: CircularProgressIndicator())
               : products.isEmpty
               ? Center(
-                  child: Text(
-                    searchQuery.trim().isEmpty
-                        ? 'Belum ada produk aktif.'
-                        : 'Produk tidak ditemukan.',
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      searchQuery.trim().isEmpty
+                          ? (emptyMessage ?? 'Belum ada produk aktif.')
+                          : 'Produk tidak ditemukan.',
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 )
               : GridView.builder(

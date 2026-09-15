@@ -5,6 +5,8 @@ import '../models/sale.dart';
 import '../models/sale_channel.dart';
 import '../models/sale_status.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/local_uuid.dart';
+import '../utils/network_error.dart';
 import '../utils/sale_money.dart';
 
 class SaleService {
@@ -13,27 +15,19 @@ class SaleService {
 
   final SupabaseClient _client;
 
+  String? get currentUserId => _client.auth.currentUser?.id;
+
   static const _select =
       '*, cn_sale_items(*), cn_sale_payments(*), '
       'cn_sale_refunds(*, cn_sale_refund_items(*))';
   static const _selectBasic =
       '*, cn_sale_items(*), cn_sale_payments(*), cn_sale_refunds(*)';
 
-  Future<String> _nextSaleNumber(DateTime date) async {
-    final prefix =
-        'CN${date.year}${date.month.toString().padLeft(2, '0')}'
-        '${date.day.toString().padLeft(2, '0')}';
-    final iso = AppDateRange.isoDate(date);
-    final rows = await _client
-        .from(CnTables.sales)
-        .select('sale_number')
-        .eq('sale_date', iso)
-        .like('sale_number', '$prefix%');
-    final count = (rows as List<dynamic>).length + 1;
-    return '$prefix-${count.toString().padLeft(4, '0')}';
-  }
-
   Future<Sale> createSale({
+    String? id,
+    String? saleNumber,
+    DateTime? soldAt,
+    String? cashierId,
     required List<SaleItem> items,
     required List<SalePayment> payments,
     required double subtotal,
@@ -46,28 +40,45 @@ class SaleService {
     String partnerTenantName = '',
     double donationAmount = 0,
   }) async {
-    final now = DateTime.now();
-    final userId = _client.auth.currentUser?.id;
-    final saleNumber = await _nextSaleNumber(now);
+    final now = soldAt ?? DateTime.now();
+    final saleId = (id == null || id.isEmpty) ? newLocalUuid() : id;
+    final number = (saleNumber == null || saleNumber.isEmpty)
+        ? localSaleNumber(now, saleId)
+        : saleNumber;
+    final userId = cashierId ?? _client.auth.currentUser?.id;
 
-    final inserted = await _client.from(CnTables.sales).insert({
-      'sale_number': saleNumber,
-      'sale_date': AppDateRange.isoDate(now),
-      'sold_at': now.toUtc().toIso8601String(),
-      'cashier_id': userId,
-      'subtotal': subtotal,
-      'service_charge_percent': serviceChargePercent,
-      'service_charge_amount': serviceChargeAmount,
-      'total': total,
-      'donation_amount': donationAmount,
-      'status': SaleStatus.paid.value,
-      'notes': notes,
-      'channel': channel.value,
-      'partner_tenant_id': partnerTenantId,
-      'partner_tenant_name': partnerTenantName,
-    }).select().single();
+    var headerExists = false;
+    try {
+      await _client.from(CnTables.sales).insert({
+        'id': saleId,
+        'sale_number': number,
+        'sale_date': AppDateRange.isoDate(now),
+        'sold_at': now.toUtc().toIso8601String(),
+        'cashier_id': userId,
+        'subtotal': subtotal,
+        'service_charge_percent': serviceChargePercent,
+        'service_charge_amount': serviceChargeAmount,
+        'total': total,
+        'donation_amount': donationAmount,
+        'status': SaleStatus.paid.value,
+        'notes': notes,
+        'channel': channel.value,
+        'partner_tenant_id': partnerTenantId,
+        'partner_tenant_name': partnerTenantName,
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) rethrow;
+      headerExists = true;
+    }
 
-    final saleId = inserted['id'] as String;
+    if (headerExists) {
+      try {
+        final existing = await fetchById(saleId);
+        if (existing.items.isNotEmpty || items.isEmpty) {
+          return existing;
+        }
+      } catch (_) {}
+    }
 
     if (items.isNotEmpty) {
       await _client.from(CnTables.saleItems).insert(

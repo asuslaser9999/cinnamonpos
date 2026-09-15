@@ -189,8 +189,10 @@ class _PosCartPanelState extends State<PosCartPanel> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Tagihan ${sale.paymentLabel} tersimpan. '
-            'Uang tidak masuk laci.',
+            pos.lastCheckoutQueued
+                ? 'Tagihan disimpan di perangkat. Akan diunggah saat internet kembali.'
+                : 'Tagihan ${sale.paymentLabel} tersimpan. '
+                    'Uang tidak masuk laci.',
           ),
         ),
       );
@@ -201,6 +203,16 @@ class _PosCartPanelState extends State<PosCartPanel> {
       final paid = await showCashPaymentDialog(context, settings: settings);
       if (!mounted || !paid) return;
       await _showCashChange(pos);
+      if (!mounted) return;
+      if (pos.lastCheckoutQueued) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tersimpan di perangkat. Akan diunggah otomatis saat internet kembali.',
+            ),
+          ),
+        );
+      }
       return;
     }
 
@@ -231,7 +243,9 @@ class _PosCartPanelState extends State<PosCartPanel> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          pos.paymentMode == CheckoutPaymentMode.edc
+          pos.lastCheckoutQueued
+              ? 'Tersimpan di perangkat. Akan diunggah otomatis saat internet kembali.'
+              : pos.paymentMode == CheckoutPaymentMode.edc
               ? 'Pembayaran EDC tersimpan. Struk dikirim ke printer.'
               : 'Transaksi campuran tersimpan. Struk dikirim ke printer.',
         ),

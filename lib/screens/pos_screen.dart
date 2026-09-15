@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/catalog_notifiers.dart';
+import '../notifiers/offline_sync_notifier.dart';
 import '../notifiers/pos_notifier.dart';
 import '../notifiers/printer_settings_notifier.dart';
 import '../widgets/pos_cart_panel.dart';
@@ -98,7 +99,12 @@ class _PosScreenState extends State<PosScreen> {
       products: filtered,
       wide: wide,
       imageSize: imageSize,
+      emptyMessage: products.errorMessage,
     );
+
+    final offline = context.watch<OfflineSyncNotifier>();
+    final scheme = Theme.of(context).colorScheme;
+    final showOfflineBar = offline.hasPending || products.usingCache;
 
     return Scaffold(
       appBar: AppBar(
@@ -112,22 +118,59 @@ class _PosScreenState extends State<PosScreen> {
             ),
         ],
       ),
-      body: wide
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(flex: 6, child: catalog),
-                const VerticalDivider(width: 1),
-                const Expanded(flex: 5, child: PosCartPanel()),
-              ],
-            )
-          : Column(
-              children: [
-                Expanded(flex: 5, child: catalog),
-                const Divider(height: 1),
-                const Expanded(flex: 5, child: PosCartPanel()),
-              ],
+      body: Column(
+        children: [
+          if (showOfflineBar)
+            Material(
+              color: scheme.tertiaryContainer,
+              child: ListTile(
+                dense: true,
+                leading: Icon(
+                  offline.hasPending
+                      ? Icons.cloud_upload_outlined
+                      : Icons.wifi_off_outlined,
+                  color: scheme.onTertiaryContainer,
+                ),
+                title: Text(
+                  offline.hasPending
+                      ? '${offline.pendingCount} transaksi menunggu diunggah '
+                            'saat internet kembali.'
+                      : (products.errorMessage ??
+                            'Mode offline: daftar produk dari perangkat ini.'),
+                  style: TextStyle(color: scheme.onTertiaryContainer),
+                ),
+                trailing: offline.hasPending
+                    ? TextButton(
+                        onPressed: offline.isSyncing
+                            ? null
+                            : () => offline.flush(),
+                        child: Text(
+                          offline.isSyncing ? 'Mengunggah...' : 'Unggah',
+                        ),
+                      )
+                    : null,
+              ),
             ),
+          Expanded(
+            child: wide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(flex: 6, child: catalog),
+                      const VerticalDivider(width: 1),
+                      const Expanded(flex: 5, child: PosCartPanel()),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Expanded(flex: 5, child: catalog),
+                      const Divider(height: 1),
+                      const Expanded(flex: 5, child: PosCartPanel()),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
