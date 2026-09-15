@@ -8,6 +8,11 @@ import '../models/app_settings.dart';
 import '../models/cashier_access_mode.dart';
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/auth_notifier.dart';
+import '../notifiers/expense_notifier.dart';
+import '../notifiers/refund_report_notifier.dart';
+import '../notifiers/report_notifier.dart';
+import '../notifiers/sale_list_notifier.dart';
+import '../notifiers/user_management_notifier.dart';
 import '../theme/app_theme.dart';
 import '../utils/auth_actions.dart';
 import '../widgets/app_navigation_drawer.dart';
@@ -43,10 +48,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   CashierAccessMode? _scheduledMode;
   String? _scheduledStart;
   String? _scheduledEnd;
+  ReportNotifier? _reports;
+  SaleListNotifier? _sales;
+  ExpenseNotifier? _expenses;
+  RefundReportNotifier? _refunds;
+  UserManagementNotifier? _users;
+
+  ReportNotifier get reports => _reports ??= ReportNotifier();
+  SaleListNotifier get sales => _sales ??= SaleListNotifier();
+  ExpenseNotifier get expenses => _expenses ??= ExpenseNotifier();
+  RefundReportNotifier get refunds => _refunds ??= RefundReportNotifier();
+  UserManagementNotifier get users => _users ??= UserManagementNotifier();
 
   @override
   void dispose() {
     _accessTimer?.cancel();
+    _reports?.dispose();
+    _sales?.dispose();
+    _expenses?.dispose();
+    _refunds?.dispose();
+    _users?.dispose();
     super.dispose();
   }
 
@@ -75,8 +96,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  void _push(BuildContext context, Widget screen) {
+  void _push(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _pushProvided<T extends ChangeNotifier>(T notifier, Widget screen) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider<T>.value(
+          value: notifier,
+          child: screen,
+        ),
+      ),
+    );
   }
 
   @override
@@ -102,9 +134,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       drawer: AppNavigationDrawer(
         settings: appSettings,
         auth: auth,
-        onPrinterSettings: () => _push(context, const PrinterSettingsScreen()),
-        onAppSettings: () => _push(context, const AppSettingsScreen()),
-        onUserManagement: () => _push(context, const UserManagementScreen()),
+        onPrinterSettings: () => _push(const PrinterSettingsScreen()),
+        onAppSettings: () => _push(const AppSettingsScreen()),
+        onUserManagement: () =>
+            _pushProvided(users, const UserManagementScreen()),
         onSignOut: () => AuthActions.confirmAndSignOut(context),
       ),
       appBar: AppBar(
@@ -205,7 +238,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         color: palette.accentBlue,
                         enabled: menuEnabled,
                         onTap: menuEnabled
-                            ? () => _push(context, const PosScreen())
+                            ? () => _push(const PosScreen())
                             : null,
                       ),
                       const SizedBox(height: 20),
@@ -220,7 +253,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: palette.accentTeal,
                             enabled: menuEnabled,
                             onTap: menuEnabled
-                                ? () => _push(context, const SaleListScreen())
+                                ? () => _pushProvided(sales, const SaleListScreen())
                                 : null,
                           ),
                           DashboardMenuRow(
@@ -230,7 +263,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: palette.accentOrange,
                             enabled: menuEnabled,
                             onTap: menuEnabled
-                                ? () => _push(context, const ExpenseListScreen())
+                                ? () => _pushProvided(
+                                    expenses,
+                                    const ExpenseListScreen(),
+                                  )
                                 : null,
                           ),
                         ],
@@ -248,7 +284,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             enabled: menuEnabled,
                             onTap: menuEnabled
                                 ? () =>
-                                    _push(context, const CashierReportScreen())
+                                    _pushProvided(
+                                      reports,
+                                      const CashierReportScreen(),
+                                    )
                                 : null,
                           ),
                           DashboardMenuRow(
@@ -259,7 +298,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             enabled: menuEnabled,
                             onTap: menuEnabled
                                 ? () =>
-                                    _push(context, const RefundReportScreen())
+                                    _pushProvided(
+                                      refunds,
+                                      const RefundReportScreen(),
+                                    )
                                 : null,
                           ),
                           DashboardMenuRow(
@@ -270,7 +312,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             enabled: menuEnabled,
                             onTap: menuEnabled
                                 ? () =>
-                                    _push(context, const TenantBillReportScreen())
+                                    _pushProvided(
+                                      reports,
+                                      const TenantBillReportScreen(),
+                                    )
                                 : null,
                           ),
                           if (auth.isOwner)
@@ -282,7 +327,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               enabled: menuEnabled,
                               onTap: menuEnabled
                                   ? () =>
-                                      _push(context, const OwnerReportScreen())
+                                      _pushProvided(
+                                        reports,
+                                        const OwnerReportScreen(),
+                                      )
                                   : null,
                             ),
                         ],
@@ -298,7 +346,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             enabled: menuEnabled,
                             onTap: menuEnabled
                                 ? () =>
-                                    _push(context, const CategoryListScreen())
+                                    _push(const CategoryListScreen())
                                 : null,
                           ),
                           DashboardMenuRow(
@@ -308,7 +356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: palette.accentOrange,
                             enabled: menuEnabled,
                             onTap: menuEnabled
-                                ? () => _push(context, const ProductListScreen())
+                                ? () => _push(const ProductListScreen())
                                 : null,
                           ),
                           DashboardMenuRow(
@@ -319,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             enabled: menuEnabled,
                             onTap: menuEnabled
                                 ? () =>
-                                    _push(context, const SupplierListScreen())
+                                    _push(const SupplierListScreen())
                                 : null,
                           ),
                           DashboardMenuRow(
@@ -329,7 +377,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: palette.accentBlue,
                             enabled: menuEnabled,
                             onTap: menuEnabled
-                                ? () => _push(context, const TenantListScreen())
+                                ? () => _push(const TenantListScreen())
                                 : null,
                           ),
                         ],

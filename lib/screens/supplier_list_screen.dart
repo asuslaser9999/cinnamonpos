@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/supplier.dart';
 import '../notifiers/catalog_notifiers.dart';
+import '../widgets/entity_list_scaffold.dart';
 
 class SupplierListScreen extends StatefulWidget {
   const SupplierListScreen({super.key});
@@ -37,48 +38,31 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
   Widget build(BuildContext context) {
     final notifier = context.watch<SupplierNotifier>();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Master Supplier')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _edit(),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: notifier.load,
-        child: notifier.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (notifier.errorMessage != null)
-                    Text(notifier.errorMessage!),
-                  if (notifier.items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(child: Text('Belum ada supplier.')),
-                    )
-                  else
-                    ...notifier.items.map(
-                      (item) => Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          title: Text(item.supplierName),
-                          subtitle: Text(
-                            [
-                              if ((item.phone ?? '').isNotEmpty) item.phone,
-                              if (item.notes.isNotEmpty) item.notes,
-                            ].join(' · '),
-                          ),
-                          trailing: const Icon(Icons.edit_outlined),
-                          onTap: () => _edit(supplier: item),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 80),
-                ],
+    return EntityListScaffold(
+      title: 'Master Supplier',
+      isLoading: notifier.isLoading,
+      onRefresh: notifier.load,
+      onAdd: () => _edit(),
+      errorMessage: notifier.errorMessage,
+      emptyText: 'Belum ada supplier.',
+      isEmpty: notifier.items.isEmpty,
+      children: [
+        for (final item in notifier.items)
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              title: Text(item.supplierName),
+              subtitle: Text(
+                [
+                  if ((item.phone ?? '').isNotEmpty) item.phone,
+                  if (item.notes.isNotEmpty) item.notes,
+                ].join(' · '),
               ),
-      ),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: () => _edit(supplier: item),
+            ),
+          ),
+      ],
     );
   }
 }

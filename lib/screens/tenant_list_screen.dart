@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/partner_tenant.dart';
 import '../notifiers/catalog_notifiers.dart';
+import '../widgets/entity_list_scaffold.dart';
 
 class TenantListScreen extends StatefulWidget {
   const TenantListScreen({super.key});
@@ -37,54 +38,36 @@ class _TenantListScreenState extends State<TenantListScreen> {
   Widget build(BuildContext context) {
     final notifier = context.watch<PartnerTenantNotifier>();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Master Tenan')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _edit(),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah'),
+    return EntityListScaffold(
+      title: 'Master Tenan',
+      isLoading: notifier.isLoading,
+      onRefresh: notifier.load,
+      onAdd: () => _edit(),
+      errorMessage: notifier.errorMessage,
+      emptyText: 'Belum ada tenan.',
+      isEmpty: notifier.items.isEmpty,
+      header: Text(
+        'Tenan cafe lain yang kadang menjual produk Anda. '
+        'Pakai di kasir lewat tombol Via Tenan.',
+        style: Theme.of(context).textTheme.bodySmall,
       ),
-      body: RefreshIndicator(
-        onRefresh: notifier.load,
-        child: notifier.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text(
-                    'Tenan cafe lain yang kadang menjual produk Anda. '
-                    'Pakai di kasir lewat tombol Via Tenan.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  if (notifier.errorMessage != null)
-                    Text(notifier.errorMessage!),
-                  if (notifier.items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(child: Text('Belum ada tenan.')),
-                    )
-                  else
-                    ...notifier.items.map(
-                      (item) => Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          title: Text(item.name),
-                          subtitle: Text(
-                            [
-                              if (!item.isActive) 'Nonaktif',
-                              if (item.notes.isNotEmpty) item.notes,
-                            ].join(' · '),
-                          ),
-                          trailing: const Icon(Icons.edit_outlined),
-                          onTap: () => _edit(tenant: item),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 80),
-                ],
+      children: [
+        for (final item in notifier.items)
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              title: Text(item.name),
+              subtitle: Text(
+                [
+                  if (!item.isActive) 'Nonaktif',
+                  if (item.notes.isNotEmpty) item.notes,
+                ].join(' · '),
               ),
-      ),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: () => _edit(tenant: item),
+            ),
+          ),
+      ],
     );
   }
 }

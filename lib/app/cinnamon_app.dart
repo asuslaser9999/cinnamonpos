@@ -7,13 +7,8 @@ import '../core/constants/app_defaults.dart';
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/auth_notifier.dart';
 import '../notifiers/catalog_notifiers.dart';
-import '../notifiers/expense_notifier.dart';
 import '../notifiers/pos_notifier.dart';
 import '../notifiers/printer_settings_notifier.dart';
-import '../notifiers/refund_report_notifier.dart';
-import '../notifiers/report_notifier.dart';
-import '../notifiers/sale_list_notifier.dart';
-import '../notifiers/user_management_notifier.dart';
 import '../theme/app_theme.dart';
 import '../widgets/remote_settings_sync.dart';
 import 'auth_gate.dart';
@@ -29,6 +24,7 @@ class CinnamonApp extends StatelessWidget {
       child: RemoteSettingsSync(
         child: Consumer<AppSettingsNotifier>(
           builder: (context, settings, _) {
+            final themed = AppTheme.forAppearance(settings.settings.appearance);
             return MaterialApp(
               title: AppDefaults.appTitle,
               debugShowCheckedModeBanner: false,
@@ -39,8 +35,8 @@ class CinnamonApp extends StatelessWidget {
                 GlobalCupertinoLocalizations.delegate,
               ],
               supportedLocales: const [Locale('id', 'ID'), Locale('en', 'US')],
-              theme: AppTheme.forAppearance(settings.settings.appearance),
-              themeMode: ThemeMode.light,
+              theme: themed,
+              darkTheme: themed,
               home: const AuthGate(),
             );
           },
@@ -54,14 +50,9 @@ final List<SingleChildWidget> appProviders = [
   ChangeNotifierProvider(create: (_) => AppSettingsNotifier()),
   ChangeNotifierProvider(create: (_) => AuthNotifier()),
   ChangeNotifierProvider(create: (_) => PrinterSettingsNotifier()),
-  ChangeNotifierProvider(create: (_) => UserManagementNotifier()),
   ChangeNotifierProvider(create: (_) => CategoryNotifier()),
   ChangeNotifierProvider(create: (_) => SupplierNotifier()),
   ChangeNotifierProvider(create: (_) => PartnerTenantNotifier()),
   ChangeNotifierProvider(create: (_) => ProductNotifier()),
   ChangeNotifierProvider(create: (_) => PosNotifier()),
-  ChangeNotifierProvider(create: (_) => SaleListNotifier()),
-  ChangeNotifierProvider(create: (_) => ExpenseNotifier()),
-  ChangeNotifierProvider(create: (_) => ReportNotifier()),
-  ChangeNotifierProvider(create: (_) => RefundReportNotifier()),
 ];

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_settings.dart';
-import 'dashboard_menu_tile.dart';
+import 'gradient_avatar.dart';
 
 class StoreBrandingHeader extends StatelessWidget {
   const StoreBrandingHeader({
