@@ -7,10 +7,14 @@ import '../utils/currency_formatter.dart';
 import '../utils/sale_money.dart';
 
 Future<Sale?> showRefundSaleSheet(BuildContext context, {required Sale sale}) {
+  final notifier = context.read<SaleListNotifier>();
   return showModalBottomSheet<Sale>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _RefundSaleSheet(sale: sale),
+    builder: (_) => ChangeNotifierProvider<SaleListNotifier>.value(
+      value: notifier,
+      child: _RefundSaleSheet(sale: sale),
+    ),
   );
 }
 

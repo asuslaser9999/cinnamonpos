@@ -8,6 +8,7 @@ import '../models/app_settings.dart';
 import '../models/cashier_access_mode.dart';
 import '../notifiers/app_settings_notifier.dart';
 import '../notifiers/auth_notifier.dart';
+import '../notifiers/daily_stock_notifier.dart';
 import '../notifiers/expense_notifier.dart';
 import '../notifiers/offline_sync_notifier.dart';
 import '../notifiers/refund_report_notifier.dart';
@@ -25,6 +26,7 @@ import 'app_settings_screen.dart';
 import 'cashier_access_screen.dart';
 import 'cashier_report_screen.dart';
 import 'category_list_screen.dart';
+import 'daily_stock_screen.dart';
 import 'expense_list_screen.dart';
 import 'owner_report_screen.dart';
 import 'pos_screen.dart';
@@ -52,12 +54,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   ReportNotifier? _reports;
   SaleListNotifier? _sales;
   ExpenseNotifier? _expenses;
+  DailyStockNotifier? _dailyStock;
   RefundReportNotifier? _refunds;
   UserManagementNotifier? _users;
 
   ReportNotifier get reports => _reports ??= ReportNotifier();
   SaleListNotifier get sales => _sales ??= SaleListNotifier();
   ExpenseNotifier get expenses => _expenses ??= ExpenseNotifier();
+  DailyStockNotifier get dailyStock => _dailyStock ??= DailyStockNotifier();
   RefundReportNotifier get refunds => _refunds ??= RefundReportNotifier();
   UserManagementNotifier get users => _users ??= UserManagementNotifier();
 
@@ -67,6 +71,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _reports?.dispose();
     _sales?.dispose();
     _expenses?.dispose();
+    _dailyStock?.dispose();
     _refunds?.dispose();
     _users?.dispose();
     super.dispose();
@@ -274,7 +279,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 20),
                       DashboardMenuSection(
                         title: 'Transaksi',
-                        subtitle: 'Daftar, reprint, refund, dan pengeluaran',
+                        subtitle: 'Daftar, stok harian, dan pengeluaran',
                         children: [
                           DashboardMenuRow(
                             icon: Icons.receipt_long_rounded,
@@ -287,10 +292,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 : null,
                           ),
                           DashboardMenuRow(
+                            icon: Icons.inventory_2_outlined,
+                            label: 'Stok Harian',
+                            subtitle: 'Stok awal, terjual, sisa',
+                            color: palette.accentOrange,
+                            enabled: menuEnabled,
+                            onTap: menuEnabled
+                                ? () => _pushProvided(
+                                    dailyStock,
+                                    const DailyStockScreen(),
+                                  )
+                                : null,
+                          ),
+                          DashboardMenuRow(
                             icon: Icons.payments_outlined,
                             label: 'Pengeluaran',
                             subtitle: 'Mengurangi laba bersih',
-                            color: palette.accentOrange,
+                            color: palette.accentPink,
                             enabled: menuEnabled,
                             onTap: menuEnabled
                                 ? () => _pushProvided(

@@ -38,10 +38,14 @@ class _SaleListScreenState extends State<SaleListScreen> {
   }
 
   Future<void> _openSale(Sale sale) async {
+    final notifier = context.read<SaleListNotifier>();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _SaleDetailSheet(sale: sale),
+      builder: (_) => ChangeNotifierProvider<SaleListNotifier>.value(
+        value: notifier,
+        child: _SaleDetailSheet(sale: sale),
+      ),
     );
   }
 

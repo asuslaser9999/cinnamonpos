@@ -15,5 +15,6 @@ class CnTables {
   static const saleRefundItems = 'cn_sale_refund_items';
   static const expenses = 'cn_expenses';
   static const partnerTenants = 'cn_partner_tenants';
+  static const dailyStock = 'cn_daily_stock';
   static const productImagesBucket = 'cn_product_images';
 }
